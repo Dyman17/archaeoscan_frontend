@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import { MapPin, Layers, Navigation, Target, Download } from 'lucide-react';
+import { MapPin, Layers, Navigation, Target, Download, Filter } from 'lucide-react';
+import { InteractiveMap } from '@/components/map/InteractiveMap';
+import { mockFoundObjects } from '@/data/mockObjects';
+import { FoundObject } from '@/types/objects';
 
 export default function MapPage() {
   const [activeLayer, setActiveLayer] = useState('terrain');
+  const [selectedObject, setSelectedObject] = useState<FoundObject | null>(null);
+  const [filterType, setFilterType] = useState<string>('all');
 
   // Simulated GPS position
   const position = {
@@ -10,6 +15,15 @@ export default function MapPage() {
     longitude: 14.4847,
     altitude: 42.3,
     accuracy: 2.5,
+  };
+
+  // Filter objects based on selected type
+  const filteredObjects = filterType === 'all' 
+    ? mockFoundObjects 
+    : mockFoundObjects.filter(obj => obj.type === filterType);
+
+  const handleObjectClick = (object: FoundObject) => {
+    setSelectedObject(object);
   };
 
   return (
@@ -28,115 +42,113 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Layer selector */}
-      <div className="flex items-center gap-2 card-instrument p-3">
-        <Layers className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Layer:</span>
-        {['terrain', 'satellite', 'magnetic', 'depth'].map((layer) => (
-          <button
-            key={layer}
-            onClick={() => setActiveLayer(layer)}
-            className={`px-3 py-1 text-xs uppercase tracking-wider rounded-md transition-colors ${
-              activeLayer === layer
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-            }`}
-          >
-            {layer}
-          </button>
-        ))}
+      {/* Filter controls */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 card-instrument p-3">
+          <Layers className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Слой:</span>
+          {['terrain', 'satellite', 'magnetic', 'depth'].map((layer) => (
+            <button
+              key={layer}
+              onClick={() => setActiveLayer(layer)}
+              className={`px-3 py-1 text-xs uppercase tracking-wider rounded-md transition-colors ${
+                activeLayer === layer
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {layer}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 card-instrument p-3">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Фильтр:</span>
+          {['all', 'artifact', 'structure', 'anomaly', 'organic'].map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`px-3 py-1 text-xs capitalize rounded-md transition-colors ${
+                filterType === type
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {type === 'all' ? 'Все' : type === 'artifact' ? 'Артефакты' : type === 'structure' ? 'Структуры' : type === 'anomaly' ? 'Аномалии' : 'Органика'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Map placeholder */}
-      <div className="flex-1 card-instrument min-h-[400px] relative overflow-hidden">
-        {/* Grid background simulating map */}
-        <div className="absolute inset-0 grid-scientific opacity-50" />
-        
-        {/* Simulated map content */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full border-4 border-primary/30 flex items-center justify-center mb-4 mx-auto relative">
-              <div className="w-16 h-16 rounded-full border-2 border-primary/50 flex items-center justify-center animate-pulse">
-                <div className="w-4 h-4 rounded-full bg-primary" />
+      {/* Interactive Map */}
+      <div className="flex-1 min-h-[400px]">
+        <InteractiveMap 
+          objects={filteredObjects} 
+          onObjectClick={handleObjectClick}
+          className="w-full h-full"
+        />
+      </div>
+
+      {/* Selected Object Details */}
+      {selectedObject && (
+        <div className="card-instrument p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">{selectedObject.name}</h3>
+              <p className="text-sm text-muted-foreground">{selectedObject.description}</p>
+            </div>
+            <button
+              onClick={() => setSelectedObject(null)}
+              className="text-muted-foreground hover:text-foreground text-xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">ID</div>
+              <div className="font-mono-data text-sm text-foreground">{selectedObject.id}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Тип</div>
+              <div className="text-sm text-foreground capitalize">{selectedObject.type}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Глубина</div>
+              <div className="font-mono-data text-sm text-foreground">{selectedObject.depth}м</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Уверенность</div>
+              <div className={`font-mono-data text-sm ${
+                selectedObject.confidence > 80 ? 'text-status-success' : 
+                selectedObject.confidence > 60 ? 'text-status-warning' : 'text-status-error'
+              }`}>
+                {selectedObject.confidence}%
               </div>
-              {/* Accuracy ring */}
-              <div className="absolute inset-0 rounded-full border border-status-info/30 animate-ping" />
             </div>
-            <div className="font-mono-data text-sm text-muted-foreground">
-              GPS Active
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Материал</div>
+              <div className="text-sm text-foreground">{selectedObject.properties.material || 'Неизвестно'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Эпоха</div>
+              <div className="text-sm text-foreground">{selectedObject.properties.era || 'Неизвестна'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Размер</div>
+              <div className="text-sm text-foreground">{selectedObject.properties.size || 'Неизвестен'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Обнаружен</div>
+              <div className="font-mono-data text-sm text-foreground">
+                {selectedObject.discoveredAt.toLocaleDateString('ru-RU')}
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Trail points */}
-        {[
-          { x: '30%', y: '40%' },
-          { x: '35%', y: '45%' },
-          { x: '42%', y: '48%' },
-          { x: '48%', y: '50%' },
-        ].map((point, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 rounded-full bg-primary/50"
-            style={{ left: point.x, top: point.y }}
-          />
-        ))}
-
-        {/* Waypoint markers */}
-        {[
-          { x: '25%', y: '30%', label: 'WP-1' },
-          { x: '70%', y: '60%', label: 'WP-2' },
-          { x: '60%', y: '25%', label: 'WP-3' },
-        ].map((wp) => (
-          <div
-            key={wp.label}
-            className="absolute flex flex-col items-center"
-            style={{ left: wp.x, top: wp.y, transform: 'translate(-50%, -100%)' }}
-          >
-            <span className="text-xs font-mono-data text-status-warning mb-1">{wp.label}</span>
-            <MapPin className="w-5 h-5 text-status-warning" />
-          </div>
-        ))}
-
-        {/* Compass */}
-        <div className="absolute top-4 right-4 w-12 h-12 rounded-full border border-border bg-background/80 flex items-center justify-center">
-          <Navigation className="w-6 h-6 text-primary transform -rotate-45" />
-        </div>
-
-        {/* Scale bar */}
-        <div className="absolute bottom-4 left-4 flex items-center gap-2">
-          <div className="h-1 w-24 bg-foreground rounded-full" />
-          <span className="font-mono-data text-xs text-muted-foreground">50m</span>
-        </div>
-      </div>
-
-      {/* Position info */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="card-instrument p-3">
-          <div className="text-xs text-muted-foreground mb-1">Latitude</div>
-          <div className="font-mono-data text-lg text-foreground">
-            {position.latitude.toFixed(6)}°
-          </div>
-        </div>
-        <div className="card-instrument p-3">
-          <div className="text-xs text-muted-foreground mb-1">Longitude</div>
-          <div className="font-mono-data text-lg text-foreground">
-            {position.longitude.toFixed(6)}°
-          </div>
-        </div>
-        <div className="card-instrument p-3">
-          <div className="text-xs text-muted-foreground mb-1">Altitude</div>
-          <div className="font-mono-data text-lg text-foreground">
-            {position.altitude.toFixed(1)}m
-          </div>
-        </div>
-        <div className="card-instrument p-3">
-          <div className="text-xs text-muted-foreground mb-1">Accuracy</div>
-          <div className="font-mono-data text-lg text-status-success">
-            ±{position.accuracy.toFixed(1)}m
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
